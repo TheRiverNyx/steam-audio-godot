@@ -1,0 +1,6 @@
+[submodule "extern/godot-cpp"]
+	path = extern/godot-cpp
+	url = https://github.com/godotengine/godot-cpp.git
+[submodule "extern/steam-audio"]
+	path = extern/steam-audio
+	url = https://github.com/ValveSoftware/steam-audio

@@ -4,27 +4,28 @@
 
 using namespace godot;
 
-void register_steam_audio_types() {
-    ClassDB::register_class<SteamAudio>();
+void initialize_steam_audio(ModuleInitializationLevel p_level) {
+    if (p_level!=MODULE_INITIALIZATION_LEVEL_SERVERS) {
+        return;
+    }
+    GDREGISTER_CLASS(SteamAudio);
+}
+void uninitialize_steam_audio(ModuleInitializationLevel p_level) {
+    if (p_level!=MODULE_INITIALIZATION_LEVEL_SERVERS) {
+        return;
+    }
+
 }
 
-extern "C" GDE_EXPORT GDExtensionBool godot_steam_audio_init(
-    GDExtensionInterfaceGetProcAddress p_get_proc_address,
-    GDExtensionClassLibraryPtr p_library,
-    GDExtensionInitialization *p_initialization
-) {
-    // Create the InitObject that drives registration.
-    GDExtensionBinding::InitObject init_obj{ p_get_proc_address, p_library, p_initialization };
+extern "C" {
+    // Initialization.
+    GDExtensionBool GDE_EXPORT steam_audio_library_init(GDExtensionInterfaceGetProcAddress p_get_proc_address, const GDExtensionClassLibraryPtr p_library, GDExtensionInitialization *r_initialization) {
+        godot::GDExtensionBinding::InitObject init_obj(p_get_proc_address, p_library, r_initialization);
 
-    // 1) Hook up your initializer
-    init_obj.register_initializer( register_steam_audio_types );
+        init_obj.register_initializer(initialize_steam_audio);
+        init_obj.register_terminator(uninitialize_steam_audio);
+        init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_SCENE);
 
-    // 2) Hook up your terminator (must match the expected callback signature)
-    init_obj.register_terminator( [](ModuleInitializationLevel level) {} );
-
-    // 3) Choose the minimum init level (common choices: SCENE, EDITOR, etc.)
-    init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_SCENE);
-
-    // 4) Actually perform the registrations
-    return init_obj.init();
+        return init_obj.init();
+    }
 }

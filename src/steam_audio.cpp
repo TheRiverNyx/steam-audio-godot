@@ -10,14 +10,16 @@ using namespace godot;
 {
     if (context)
     {
-        steam_audio_release_context(context);
+        iplContextRelease(&context);
         context=nullptr;
     }
 }
-void SteamAudio::_bind_methods()
-{
+void SteamAudio::_bind_methods() {
     ClassDB::bind_method(D_METHOD("initialize"), &SteamAudio::initialize);
 }
+
+SteamAudio::SteamAudio() = default;
+
 bool SteamAudio::initialize()
  {
      IPLContextSettings settings{};

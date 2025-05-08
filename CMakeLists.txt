@@ -1,164 +1,194 @@
 # SPDX-License-Identifier: Unlicense
 
-cmake_minimum_required( VERSION 3.22 )
+cmake_minimum_required(VERSION 3.22)
 
-message( STATUS "Using CMake ${CMAKE_VERSION}" )
+# Opt into the new install-destination normalization behavior
+if(POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
+endif()
+
+message(STATUS "Using CMake ${CMAKE_VERSION}")
 
 # Require out-of-source builds
-file( TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" LOC_PATH )
-
-if ( EXISTS "${LOC_PATH}" )
-    message( FATAL_ERROR "You cannot build in the source directory. Please use a build subdirectory." )
+file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" LOC_PATH)
+if(EXISTS "${LOC_PATH}")
+    message(FATAL_ERROR "You cannot build in the source directory. Please use a build subdirectory.")
 endif()
 
-# Add paths to modules
-list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/" )
+# Add custom CMake modules
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
-# Turn on link time optimization for everything
-set( CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON )
-
-# Output compile commands to compile_commands.json (for debugging CMake issues)
-set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
-
-# Build universal lib on macOS
-# Note that CMAKE_OSX_ARCHITECTURES must be set before project().
-if ( APPLE )
-    set( CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "" )
+# Enable LTO for release if supported
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_output)
+if(ipo_supported)
+    message(STATUS "IPO/LTO supported: enabling interprocedural optimization")
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+else()
+    message(STATUS "IPO/LTO not supported: skipping LTO flags (${ipo_output})")
 endif()
 
-# Main project information
-project( SteamAudioGodot
-    LANGUAGES
-        CXX
-    VERSION
-        0.1.0
+# Output compile commands for editor integration
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Build universal library on macOS
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE STRING "")
+endif()
+
+# Project definition
+project(SteamAudioGodot
+        VERSION 0.1.0
+        LANGUAGES CXX
 )
 
-# Create our library
-add_library( ${PROJECT_NAME} SHARED )
+# Create the shared library target
+add_library(${PROJECT_NAME} SHARED)
 
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 
-target_compile_features( ${PROJECT_NAME}
-    PRIVATE
-        cxx_std_17
-)
-
-# LIB_ARCH is the architecture being built. It is set to the build system's architecture.
-# For macOS, we build a universal library (both arm64 and x86_64).
-set( LIB_ARCH ${CMAKE_SYSTEM_PROCESSOR} )
-if ( APPLE )
-    set( LIB_ARCH "universal" )
+# Determine architecture label
+set(LIB_ARCH ${CMAKE_SYSTEM_PROCESSOR})
+if(APPLE)
+    set(LIB_ARCH "universal")
 endif()
 
-# LIB_DIR is where the actual library ends up. This is used in both the build directory and the
-# install directory and needs to be consistent with the paths in the gdextension file.
-#   e.g. linux.release.x86_64 = "lib/Linux-x86_64/libGDExtensionTemplate.so"
-set( LIB_DIR "lib/${CMAKE_SYSTEM_NAME}-${LIB_ARCH}" )
+# Where Godot expects library binaries
+set(LIB_DIR "lib/${CMAKE_SYSTEM_NAME}-${LIB_ARCH}")
+message(STATUS "Building ${PROJECT_NAME} for ${LIB_ARCH} on ${CMAKE_SYSTEM_NAME}")
 
-message( STATUS "Building ${PROJECT_NAME} for ${LIB_ARCH} on ${CMAKE_SYSTEM_NAME}")
-
-# BUILD_OUTPUT_DIR is where we put the resulting library (in the build directory)
-set( BUILD_OUTPUT_DIR "${PROJECT_BINARY_DIR}/${PROJECT_NAME}/" )
-
-set_target_properties( ${PROJECT_NAME}
-    PROPERTIES
-        CXX_VISIBILITY_PRESET hidden
-        VISIBILITY_INLINES_HIDDEN true
+# Output directories for built library
+set(BUILD_OUTPUT_DIR "${PROJECT_BINARY_DIR}/${PROJECT_NAME}/")
+set_target_properties(${PROJECT_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${BUILD_OUTPUT_DIR}/${LIB_DIR}"
         LIBRARY_OUTPUT_DIRECTORY "${BUILD_OUTPUT_DIR}/${LIB_DIR}"
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN TRUE
 )
 
-if( NOT DEFINED CMAKE_DEBUG_POSTFIX )
-    set_target_properties( ${PROJECT_NAME}
-        PROPERTIES
-            DEBUG_POSTFIX "-d"
-    )
+# Append debug postfix if needed
+if(NOT DEFINED CMAKE_DEBUG_POSTFIX)
+    set_target_properties(${PROJECT_NAME} PROPERTIES DEBUG_POSTFIX "-d")
 endif()
 
-# Copy over additional files from the support_files directory
-add_custom_command(
-    TARGET ${PROJECT_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${CMAKE_SOURCE_DIR}/support_files"
-            ${BUILD_OUTPUT_DIR}
+# (Optional) Copy support_files icons and templates next to build output
+# if you need them in your local addon for testing. Exclude the 'lib' folder to avoid nested structure.
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/support_files/icons"
+        "${BUILD_OUTPUT_DIR}/icons"
 )
 
-# Warnings
-include( CompilerWarnings )
+# Build source files
+add_subdirectory(src)
 
-# Create and include version info file from git
-include( GitVersionInfo )
+# ─────────────────────────────────────────────────────────────────────────────
+# Stage Steam Audio runtimes alongside the built GDExtension
+# ─────────────────────────────────────────────────────────────────────────────
 
-add_subdirectory( src )
-
-set(STEAMAUDIO_SDK_ROOT "${CMAKE_SOURCE_DIR}/extern/steam-audio")
-
-target_include_directories(${PROJECT_NAME}
-        PRIVATE
-            ${STEAMAUDIO_SDK_ROOT}/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/extern/godot-cpp/include
-            ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
-
-# Install library, extension file, and support files in ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}
-set( INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME}/" )
-
-message( STATUS "Install directory: ${INSTALL_DIR}")
-
-install( TARGETS ${PROJECT_NAME}
-    LIBRARY
-        DESTINATION ${INSTALL_DIR}/${LIB_DIR}
-    RUNTIME
-        DESTINATION ${INSTALL_DIR}/${LIB_DIR}
-)
-
-# Copy over support files
-install( DIRECTORY "${CMAKE_SOURCE_DIR}/support_files/"
-    DESTINATION ${INSTALL_DIR}
-    PATTERN ".*" EXCLUDE
-)
-
-add_subdirectory( templates )
-
-# ccache
-# Turns on ccache if found
-include( ccache )
-
-# Formatting
-# Adds a custom target to format all the code at once
-include( ClangFormat )
-
-# godot-cpp
-# From here: https://github.com/godotengine/godot-cpp
-if ( NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/extern/godot-cpp/Makefile" )
-    message(
-        FATAL_ERROR
-            "[${PROJECT_NAME}] The godot-cpp submodule was not downloaded. Please update submodules: git submodule update --init --recursive."
-    )
+# Detect platform-specific subdirectories
+if(WIN32)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(_SA_RUNTIME_SUBDIR "windows-x64")
+        set(_SA_GDE_DIR       "Windows-AMD64")
+    else()
+        set(_SA_RUNTIME_SUBDIR "windows-x86")
+        set(_SA_GDE_DIR       "Windows-386")
+    endif()
+elseif(APPLE)
+    set(_SA_RUNTIME_SUBDIR "ios")    # switch to "osx" if targeting desktop
+    set(_SA_GDE_DIR       "Darwin")
+elseif(ANDROID)
+    set(_SA_RUNTIME_SUBDIR "${ANDROID_ABI}")
+    set(_SA_GDE_DIR       "${ANDROID_ABI}")
+elseif(UNIX)
+    if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+        set(_SA_RUNTIME_SUBDIR "linux-x64")
+        set(_SA_GDE_DIR       "Linux-x64")
+    else()
+        set(_SA_RUNTIME_SUBDIR "linux-x86")
+        set(_SA_GDE_DIR       "Linux-x86")
+    endif()
+else()
+    message(FATAL_ERROR "Unsupported platform for SteamAudioGodot")
 endif()
 
-set( GODOT_CPP_SYSTEM_HEADERS ON CACHE BOOL "" FORCE )
+# Path to prebuilt Steam Audio runtime files
+set(_SA_RUNTIME_DIR "${CMAKE_CURRENT_SOURCE_DIR}/support_files/lib/${_SA_RUNTIME_SUBDIR}")
+# Where Godot will load the binaries (target output directory already equals build_output/lib/Platform)
+set(_SA_OUTPUT_DIR "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
 
-add_subdirectory( extern/godot-cpp )
-
-set_target_properties( godot-cpp
-    PROPERTIES
-        CXX_VISIBILITY_PRESET hidden    # visibility needs to be the same as the main library
+# Copy the runtime files after build
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${_SA_OUTPUT_DIR}"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${_SA_RUNTIME_DIR}"
+        "${_SA_OUTPUT_DIR}"
 )
 
-target_link_libraries( ${PROJECT_NAME}
-    PRIVATE
+# Include paths for Steam Audio SDK and godot-cpp
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/steam-audio/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/extern/godot-cpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+# Installation setup
+set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/install/${PROJECT_NAME}/")
+message(STATUS "Install directory: ${INSTALL_DIR}")
+install(TARGETS ${PROJECT_NAME}
+        RUNTIME DESTINATION ${INSTALL_DIR}/${LIB_DIR}
+        LIBRARY DESTINATION ${INSTALL_DIR}/${LIB_DIR}
+)
+# Install Steam Audio runtime libraries into the addon install folder
+install(
+        DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/support_files/lib/${_SA_RUNTIME_SUBDIR}/"
+        DESTINATION "${INSTALL_DIR}/${LIB_DIR}/"
+        FILES_MATCHING
+        PATTERN "*.dll"
+        PATTERN "*.so"
+        PATTERN "*.dylib"
+        PATTERN "*.a"
+)
+
+# Templates subdir
+add_subdirectory(templates)
+
+# ccache integration
+include(ccache)
+
+# Install Steam Audio runtime libraries into the addon install folder
+install(
+        DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/support_files/lib/${_SA_RUNTIME_SUBDIR}/"
+        DESTINATION "${INSTALL_DIR}/${LIB_DIR}/"
+        FILES_MATCHING
+        PATTERN "*.dll"
+        PATTERN "*.so"
+        PATTERN "*.dylib"
+        PATTERN "*.a"
+)
+
+# Code formatting
+include(ClangFormat)
+include(ccache)
+# Code formatting
+include(ClangFormat)
+
+# godot-cpp bindings
+if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/extern/godot-cpp/Makefile")
+    message(FATAL_ERROR "[${PROJECT_NAME}] Missing godot-cpp submodule. Run: git submodule update --init --recursive.")
+endif()
+set(GODOT_CPP_SYSTEM_HEADERS ON CACHE BOOL "" FORCE)
+add_subdirectory(extern/godot-cpp)
+set_target_properties(godot-cpp PROPERTIES CXX_VISIBILITY_PRESET hidden)
+
+# Link against godot-cpp and Steam Audio phonon library
+# Add Steam Audio phonon lib search path
+target_link_directories(${PROJECT_NAME} PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/extern/steam-audio/lib/${_SA_RUNTIME_SUBDIR}"
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE
         godot-cpp
         phonon
-)
-
-target_link_directories(${PROJECT_NAME}
-        PRIVATE
-        ${STEAMAUDIO_SDK_ROOT}/lib/windows-x64
-)
-
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${STEAMAUDIO_SDK_ROOT}/lib/windows-x64/phonon.dll"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
 )

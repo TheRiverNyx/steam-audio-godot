@@ -16,12 +16,16 @@ class SteamAudio : public RefCounted
 {
     GDCLASS( SteamAudio,RefCounted ) // NOLINT(readability-use-auto)
 
-    private:
-        IPLContext context = nullptr;
-    protected:
-        static void _bind_methods();
-    public:
-        SteamAudio();
-        ~SteamAudio() override;
+private:
+    IPLContext context = nullptr;
+    IPLEmbreeDevice embree_device = nullptr;
+protected:
+    static void _bind_methods();
+public:
+    SteamAudio();
+    ~SteamAudio() override;
     bool initialize();
+
+    [[nodiscard]] IPLContext getContext() const{return context;}
+    [[nodiscard]] IPLEmbreeDevice getEmbreeDevice() const{return embree_device;}
 };

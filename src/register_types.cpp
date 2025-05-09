@@ -1,6 +1,8 @@
 ﻿// src/register_types.cpp
 #include "register_types.h"
 #include "steam_audio.h"   // your SteamAudio class declaration
+#include "steam_audio_scene.h"
+
 
 using namespace godot;
 
@@ -8,13 +10,16 @@ void initialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level!=MODULE_INITIALIZATION_LEVEL_SERVERS) {
         return;
     }
+    /*if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+        GDREGISTER_CLASS(SteamAudioEditorPlugin);
+    }*/
     GDREGISTER_CLASS(SteamAudio);
+    GDREGISTER_CLASS(SteamAudioScene);
 }
 void uninitialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level!=MODULE_INITIALIZATION_LEVEL_SERVERS) {
         return;
     }
-
 }
 
 extern "C" {

@@ -13,6 +13,10 @@ using namespace godot;
         iplContextRelease(&context);
         context=nullptr;
     }
+     if (embree_device) {
+         iplEmbreeDeviceRelease(&embree_device);
+         embree_device=nullptr;
+     }
 }
 void SteamAudio::_bind_methods() {
     ClassDB::bind_method(D_METHOD("initialize"), &SteamAudio::initialize);
@@ -30,5 +34,10 @@ bool SteamAudio::initialize()
          UtilityFunctions::printerr("SteamAudio::initialize()", err);
          return false;
      }
+    IPLEmbreeDeviceSettings emb_device_settings{};
+    if (iplEmbreeDeviceCreate(context, &emb_device_settings, &embree_device) != IPL_STATUS_SUCCESS) {
+        UtilityFunctions::printerr("SteamAudio::initialize(): failed to create Embree device");
+        return false;
+    }
      return true;
  }

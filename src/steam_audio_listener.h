@@ -1,22 +1,24 @@
-﻿//
-// Created by bryce on 5/8/2025.
-//
+﻿#pragma once
 
-#pragma once
-#include <godot_cpp/classes/node3d.hpp>
+#include<godot_cpp/godot.hpp>
 #include <godot_cpp/classes/audio_listener3d.hpp>
-#include <godot_cpp/godot.hpp>
-#include "steam_audio.h"
-#include <phonon.h>
+#include <godot_cpp/core/class_db.hpp>
+#include <godot_cpp/classes/wrapped.hpp>
 
 using namespace godot;
 
-class SteamAudioListener : public AudioListener3D {
+class SteamAudioListener:public AudioListener3D
+{
     GDCLASS(SteamAudioListener,AudioListener3D)
-    Ref<SteamAudio> ctx;
+
+
 protected:
     static void _bind_methods();
+    void _process(double p_delta) override;
 public:
-    void set_context(const Ref<SteamAudio> &p_ctx);
-    void _process(double delta) override;
+    SteamAudioListener();
+    ~SteamAudioListener() override;
+
+private:
+
 };

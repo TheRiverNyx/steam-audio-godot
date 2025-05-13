@@ -1,32 +1,29 @@
-﻿//
-// Created by bryce on 5/9/2025.
-//
+﻿#pragma once
 
-#pragma once
-#include <godot_cpp/classes/audio_stream_player3d.hpp>
 #include <godot_cpp/classes/node3d.hpp>
-
+#include <godot_cpp/classes/audio_stream_generator.hpp>
+#include <godot_cpp/classes/audio_stream_generator_playback.hpp>
+#include <godot_cpp/classes/audio_stream_player3d.hpp>
+#include <godot_cpp/godot.hpp>
+#include <godot_cpp/core/class_db.hpp>
+#include "steam_audio.h"
 #include "phonon.h"
 
 using namespace godot;
 
-class SteamAudioSource:Node3D {
-    GDCLASS(SteamAudioSource, Node3D)
-private:
-    AudioStreamPlayer3D* audio_player = nullptr;
-    IPLSource steam_audio_source = nullptr;
+class SteamAudioSource: public Node3D
+{
+    GDCLASS(SteamAudioSource,Node3D)
 
-    bool initialized = false;
+    IPLSource *pSource = nullptr;
+    SteamAudio *sa = SteamAudio::steam_audio;
+    IPLSourceSettings settings{};
+protected:
+    static void _bind_methods();
+    void _process(double p_delta) override;
 public:
     SteamAudioSource();
     ~SteamAudioSource();
+    bool update_position();
 
-    void _ready() override;
-    void _process(double p_delta) override;
-
-    void play();
-    void stop();
-    void set_stream(const Ref<AudioStream>& p_stream);
-protected:
-    static void _bind_methods();
 };

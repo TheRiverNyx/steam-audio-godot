@@ -1,32 +1,46 @@
-﻿//
-// Created by bryce on 5/8/2025.
-//
+﻿#include "steam_audio_listener.h"
 
-#include "steam_audio_listener.h"
+#include "phonon.h"
 
 using namespace godot;
 
+SteamAudioListener::SteamAudioListener()  = default;
+SteamAudioListener::~SteamAudioListener() = default;
+
 void SteamAudioListener::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("set_context", "ctx"), &SteamAudioListener::set_context);
-    ClassDB::bind_method(D_METHOD("_process","delta"), &SteamAudioListener::_process);
 
-    ADD_PROPERTY(
-        PropertyInfo(Variant::OBJECT, "context", PROPERTY_HINT_RESOURCE_TYPE, "SteamAudio"),
-        "set_context", ""
-        );
-}
-
-void SteamAudioListener::set_context(const Ref<SteamAudio> &p_ctx) {
-    ERR_FAIL_COND(!p_ctx.is_valid());
-    ctx = p_ctx;
 }
 
 void SteamAudioListener::_process(double delta) {
-    ERR_FAIL_COND(!ctx.is_valid());
     Transform3D transform = get_global_transform();
-    IPLCoordinateSpace3 ls{};
-    ls.origin = {transform.origin.x, transform.origin.y, transform.origin.z};
-    Vector3 fwd = transform.basis.xform(Vector3(0,0,-1)), upv = transform.basis.xform(Vector3(0,1,0));
-    ls.ahead = {fwd.x, fwd.y, fwd.z};
-    ls.up = {upv.x, upv.y, upv.z};
+
+    IPLVector3 pos = {
+        static_cast<float>(transform.origin.x),
+        static_cast<float>(transform.origin.y),
+        static_cast<float>(transform.origin.z)
+    };
+    Vector3 godot_fwd = transform.basis.xform(Vector3(0, 0, -1));
+    IPLVector3 fwd = {
+        static_cast<float>(godot_fwd.x),
+        static_cast<float>(godot_fwd.y),
+        static_cast<float>(godot_fwd.z)
+    };
+    Vector3 godot_up = transform.basis.xform(Vector3(0, 1, 0));
+    IPLVector3 up = {
+        static_cast<float>(godot_up.x),
+        static_cast<float>(godot_up.y),
+        static_cast<float>(godot_up.z)
+    };
+    IPLVector3 right = {
+        fwd.y * up.z - fwd.z * up.y,
+        fwd.z * up.x - fwd.x * up.z,
+        fwd.x * up.y - fwd.y * up.x
+    };
+    IPLCoordinateSpace3 listenerCS{};
+    listenerCS.origin = pos;
+    listenerCS.ahead = fwd;
+    listenerCS.up = up;
+    listenerCS.right = right;
+    IPLSimulationSharedInputs sharedInputs{};
+    sharedInputs.listener = listenerCS;
 }

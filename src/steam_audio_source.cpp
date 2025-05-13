@@ -1,30 +1,22 @@
-﻿//
-// Created by bryce on 5/9/2025.
-//
+﻿#include "steam_audio_source.h"
 
-#include "steam_audio_source.h"
-
-#include "steam_audio.h"
+#include "steam_audio_globals.h"
 
 using namespace godot;
-
- SteamAudioSource::SteamAudioSource() {
-
+SteamAudioSource::SteamAudioSource() {
+    iplSourceCreate(sa->get_simulator(),&settings,pSource);
 }
- SteamAudioSource::~SteamAudioSource() {
-    if (steam_audio_source) {
-        iplSourceRelease(&steam_audio_source);
-        steam_audio_source = nullptr;
-    }
+SteamAudioSource::~SteamAudioSource() {
+    iplSourceRelease(pSource);
 }
-
 void SteamAudioSource::_bind_methods() {
-     ClassDB::bind_method(D_METHOD("play"), &SteamAudioSource::play);
-     ClassDB::bind_method(D_METHOD("stop"), &SteamAudioSource::stop);
-     ClassDB::bind_method(D_METHOD("set_stream","stream"), &SteamAudioSource::set_stream);
- }
+}
 
-void SteamAudioSource::play() {
-     audio_player = memnew(AudioStreamPlayer3D);
-     add_child(audio_player);
- }
+void SteamAudioSource::_process(double delta) {
+    update_position();
+}
+bool SteamAudioSource::update_position() {
+    IPLCoordinateSpace3 current_pos = sa->godot_to_ipl_space(get_transform());
+
+    iplSource
+}

@@ -1,0 +1,38 @@
+[gd_scene load_steps=7 format=3 uid="uid://djvqisfxi1l0b"]
+
+[ext_resource type="Script" uid="uid://dpd2la1tonipl" path="res://Scripts/Characters/player.gd" id="1_gjot8"]
+[ext_resource type="Script" uid="uid://gihel4imt7xk" path="res://Scripts/Components/health_component.gd" id="2_0el0d"]
+[ext_resource type="Resource" uid="uid://bmm74325qvi5l" path="res://Resources/Data/Character/Player Defaults/player_health.tres" id="3_o5en2"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_gjot8"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_gjot8"]
+albedo_color = Color(1, 0, 1, 1)
+
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_gjot8"]
+material = SubResource("StandardMaterial3D_gjot8")
+
+[node name="Player" type="CharacterBody3D"]
+script = ExtResource("1_gjot8")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+shape = SubResource("CapsuleShape3D_gjot8")
+
+[node name="Pivot" type="Node3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Pivot"]
+mesh = SubResource("CapsuleMesh_gjot8")
+skeleton = NodePath("../..")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="Pivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)
+spring_length = 0.0
+
+[node name="Camera3D" type="Camera3D" parent="Pivot/SpringArm3D"]
+
+[node name="SteamAudioListener" type="SteamAudioListener" parent="Pivot/SpringArm3D/Camera3D"]
+
+[node name="HealthComponenent" type="Node" parent="."]
+script = ExtResource("2_0el0d")
+data = ExtResource("3_o5en2")
+metadata/_custom_type_script = "uid://gihel4imt7xk"

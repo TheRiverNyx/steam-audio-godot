@@ -1,0 +1,52 @@
+[gd_scene load_steps=6 format=3 uid="uid://dtccwj1qujhxp"]
+
+[ext_resource type="PackedScene" uid="uid://djvqisfxi1l0b" path="res://Scenes/Characters/Player.tscn" id="1_ebmjs"]
+[ext_resource type="Texture2D" uid="uid://bj23bn0s4mt0d" path="res://icon.svg" id="1_qxrlw"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wrm1d"]
+albedo_texture = ExtResource("1_qxrlw")
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_2poj3"]
+material = SubResource("StandardMaterial3D_wrm1d")
+size = Vector2(200, 200)
+subdivide_width = 2
+subdivide_depth = 2
+
+[sub_resource type="WorldBoundaryShape3D" id="WorldBoundaryShape3D_ebmjs"]
+
+[node name="Game" type="Node3D"]
+
+[node name="Floor" type="Node3D" parent="."]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor"]
+mesh = SubResource("PlaneMesh_2poj3")
+skeleton = NodePath("../..")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Floor/MeshInstance3D"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor/MeshInstance3D/StaticBody3D"]
+shape = SubResource("WorldBoundaryShape3D_ebmjs")
+
+[node name="SteamAudioStaticMesh" type="SteamAudioStaticMesh" parent="Floor/MeshInstance3D"]
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 199.503, 0, 0)
+mesh = SubResource("PlaneMesh_2poj3")
+skeleton = NodePath("../..")
+
+[node name="StaticBody3D" type="StaticBody3D" parent="Floor/MeshInstance3D2"]
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor/MeshInstance3D2/StaticBody3D"]
+shape = SubResource("WorldBoundaryShape3D_ebmjs")
+
+[node name="SteamAudioStaticMesh" type="SteamAudioStaticMesh" parent="Floor/MeshInstance3D2"]
+
+[node name="Player" parent="." instance=ExtResource("1_ebmjs")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.039711, 1, -0.146652)
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.703544, 0.710652, 0, -0.710652, 0.703544, 0, 7.28685, 0)
+
+[node name="SteamAudioManager" type="SteamAudioManager" parent="."]
+
+[node name="SteamAudioSource" type="SteamAudioSource" parent="."]

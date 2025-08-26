@@ -1,29 +1,36 @@
-﻿#include "register_types.h"
+﻿#include "register_types.hpp"
 
 using namespace godot;
 
+SteamAudioServer *srv;
+
 void initialize_steam_audio(ModuleInitializationLevel p_level) {
-    if (p_level!=MODULE_INITIALIZATION_LEVEL_SCENE) {
+    if (p_level!=MODULE_INITIALIZATION_LEVEL_SCENE && p_level != MODULE_INITIALIZATION_LEVEL_SERVERS) {
         return;
     }
-    register_steam_audio_settings();
-    GDREGISTER_CLASS(SteamAudio);
-    GDREGISTER_CLASS(SteamAudioMaterial);
-    GDREGISTER_RUNTIME_CLASS(SteamAudioListener);
-    GDREGISTER_RUNTIME_CLASS(SteamAudioSource);
-    GDREGISTER_RUNTIME_CLASS(SteamAudioStaticMesh)
-    GDREGISTER_RUNTIME_CLASS(SteamAudioDynamicMesh)
+    if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
+        GDREGISTER_CLASS(SteamAudioServer);
+        srv = memnew(SteamAudioServer);
+    }
+    if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
+        register_steam_audio_settings();
+        GDREGISTER_RUNTIME_CLASS(SteamAudioMaterial);
+        GDREGISTER_RUNTIME_CLASS(SteamAudioListener);
+        GDREGISTER_RUNTIME_CLASS(SteamAudioSource);
+        GDREGISTER_RUNTIME_CLASS(SteamAudioStaticMesh);
+        GDREGISTER_RUNTIME_CLASS(SteamAudioDynamicMesh);
+    }
 }
 
 void uninitialize_steam_audio(ModuleInitializationLevel p_level) {
-    if (p_level!=MODULE_INITIALIZATION_LEVEL_SCENE) {
-        return;
+    if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
+        memdelete(srv);
     }
 }
 
 void register_steam_audio_settings() {
-    ProjectSettings *settings = ProjectSettings::get_singleton();
 
+    ProjectSettings *settings = ProjectSettings::get_singleton();
     {//Raytracer enum
         settings->set("steam_audio/ray_tracer/RayTracer",0);
         Dictionary info;
@@ -33,7 +40,7 @@ void register_steam_audio_settings() {
         info["hint_string"] = "Steam RT,Embree RT";
         info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
-        settings->set("steam_audio/ray_tracer/RayTracer",1);
+        settings->set_initial_value("steam_audio/ray_tracer/RayTracer",1);
     }
 
     {//spatialization mode enum
@@ -49,7 +56,31 @@ void register_steam_audio_settings() {
     }
 
     {
-        settings->set("steam_audio/spatializer/HRTF/Volume",0);
+        settings->set("steam_audio/spatializer/HRTF/HRTF_Type",0);
+        Dictionary info;
+        info["name"] = "steam_audio/spatializer/HRTF/HRTF_Type";
+        info["type"] = Variant::INT;
+        info["hint"] = PROPERTY_HINT_ENUM;
+        info["hint_string"] = "Default,Custom";
+        info["usage"] = PROPERTY_USAGE_DEFAULT;
+        settings->add_property_info(info);
+        settings->set_initial_value("steam_audio/spatializer/HRTF/HRTF_Type",0);
+    }
+
+    {
+        settings->set("steam_audio/spatializer/HRTF/Sofa_File",0.0f);
+        Dictionary info;
+        info["name"] = "steam_audio/spatializer/HRTF/Sofa_File";
+        info["type"] = Variant::STRING;
+        info["hint"] = PROPERTY_HINT_FILE;
+        info["hint_string"] = "";
+        info["usage"] = PROPERTY_USAGE_DEFAULT;
+        settings->add_property_info(info);
+        settings->set_initial_value("steam_audio/spatializer/HRTF/Sofa_File","");
+    }
+
+    {
+        settings->set("steam_audio/spatializer/HRTF/Volume",1.0f);
         Dictionary info;
         info["name"] = "steam_audio/spatializer/HRTF/Volume";
         info["type"] = Variant::FLOAT;
@@ -57,9 +88,42 @@ void register_steam_audio_settings() {
         info["hint_string"] = "0.0,1.0,.01,slider";
         info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
-        settings->set("steam_audio/spatializer/HRTF/Volume",1);
+        settings->set_initial_value("steam_audio/spatializer/HRTF/Volume",1.0f);
     }
 
+    {
+        settings->set("steam_audio/spatializer/HRTF/Norm_Type",0);
+        Dictionary info;
+        info["name"] = "steam_audio/spatializer/HRTF/Norm_Type";
+        info["type"] = Variant::INT;
+        info["hint"] = PROPERTY_HINT_ENUM;
+        info["hint_string"] = "NONE,Root Mean Squared";
+        info["usage"] = PROPERTY_USAGE_DEFAULT;
+        settings->add_property_info(info);
+        settings->set_initial_value("steam_audio/spatializer/HRTF/Norm_Type",0);
+    }
+
+    {
+        settings->set("steam_audio/sampling_rate",0);
+        Dictionary info;
+        info["name"] = "steam_audio/sampling_rate";
+        info["type"] = Variant::INT;
+        info["hint"] = PROPERTY_HINT_ENUM;
+        info["hint_string"] = "44100:44100,48000:48000";
+        settings->add_property_info(info);
+        settings->set_initial_value("steam_audio/sampling_rate",48000);
+    }
+
+    {
+        settings->set("steam_audio/buffer_size",0);
+        Dictionary info;
+        info["name"] = "steam_audio/buffer_size";
+        info["type"] = Variant::INT;
+        info["hint"] = PROPERTY_HINT_ENUM;
+        info["hint_string"] = "512:512,1024:1024";
+        settings->add_property_info(info);
+        settings->set_initial_value("steam_audio/buffer_size",1024);
+    }
 }
 
 extern "C" {

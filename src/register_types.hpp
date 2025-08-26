@@ -3,12 +3,13 @@
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
-#include "steam_audio.h"
-#include "steam_audio_listener.h"
-#include "steam_audio_material.h"
-#include "steam_audio_source.h"
-#include "steam_audio_static_mesh.h"
-#include "steam_audio_dynamic_mesh.h"
+#include "steam_audio.hpp"
+#include "steam_audio_dynamic_mesh.hpp"
+#include "steam_audio_source.hpp"
+#include "steam_audio_listener.hpp"
+#include "steam_audio_server.hpp"
+#include "steam_audio_material.hpp"
+#include "steam_audio_static_mesh.hpp"
 
 using namespace godot;
 

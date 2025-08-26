@@ -1,24 +1,22 @@
 ﻿// steam_audio_static_mesh.cpp
-#include "steam_audio_static_mesh.h"
-
-#include <godot_cpp/classes/array_mesh.hpp>
-#include <godot_cpp/classes/convex_polygon_shape3d.hpp>
-#include <godot_cpp/classes/shape3d.hpp>
-#include <godot_cpp/variant/packed_int32_array.hpp>
-#include <godot_cpp/variant/packed_vector3_array.hpp>
-#include <phonon.h> // IPLStaticMesh, IPLStaticMeshSettings, IPLMaterial
+#include "steam_audio_static_mesh.hpp"
 
 using namespace godot;
 
-SteamAudioStaticMesh::SteamAudioStaticMesh() = default;
+Vector<SteamAudioStaticMesh*> SteamAudioStaticMesh::_instances;
+
+SteamAudioStaticMesh::SteamAudioStaticMesh() {
+    _instances.push_back(this);
+}
 
 SteamAudioStaticMesh::~SteamAudioStaticMesh() {
-    // release any previously created Steam Audio meshes
-    for (auto &sm : static_meshes) {
-        iplStaticMeshRelease(&sm);
-    }
-    static_meshes.clear();
+    _instances.erase(this);
 }
+
+const Vector<SteamAudioStaticMesh *> &SteamAudioStaticMesh::get_all_static_meshes() {
+    return _instances;
+}
+
 
 void SteamAudioStaticMesh::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_proxy_mode",        "mode"), &SteamAudioStaticMesh::set_proxy_mode);
@@ -30,19 +28,13 @@ void SteamAudioStaticMesh::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_custom_proxy_mesh"),      &SteamAudioStaticMesh::get_custom_proxy_mesh);
     ADD_PROPERTY(
             PropertyInfo(Variant::OBJECT, "custom_proxy_mesh",PROPERTY_HINT_RESOURCE_TYPE,"Mesh"), "set_custom_proxy_mesh","get_custom_proxy_mesh");
-
-    ClassDB::bind_method(D_METHOD("set_default_material",  "mat"),  &SteamAudioStaticMesh::set_default_material);
-    ClassDB::bind_method(D_METHOD("get_default_material"),        &SteamAudioStaticMesh::get_default_material);
-
-    // And still bind your proxy-generator:
-    ClassDB::bind_method(D_METHOD("generate_proxy_mesh"), &SteamAudioStaticMesh::generate_proxy_mesh);
-
 }
 
 // Setters & getters ---------------------------------------------------
 void SteamAudioStaticMesh::set_proxy_mode(int mode) {
     proxy_mode = mode;
 }
+
 int SteamAudioStaticMesh::get_proxy_mode() const {
     return proxy_mode;
 }
@@ -50,132 +42,217 @@ int SteamAudioStaticMesh::get_proxy_mode() const {
 void SteamAudioStaticMesh::set_custom_proxy_mesh(Ref<Mesh> mesh) {
     custom_proxy_mesh = mesh;
 }
+
 Ref<Mesh> SteamAudioStaticMesh::get_custom_proxy_mesh() const {
     return custom_proxy_mesh;
 }
 
-void SteamAudioStaticMesh::set_default_material(Ref<SteamAudioMaterial> mat) {
-    default_material = mat;
-}
-Ref<SteamAudioMaterial> SteamAudioStaticMesh::get_default_material() const {
-    return default_material;
-}
-
 // Core functionality --------------------------------------------------
-void SteamAudioStaticMesh::generate_proxy_mesh() {
-    // 1) Clean up any old meshes
-    for (auto &sm : static_meshes) {
-        iplStaticMeshRelease(&sm);
-    }
-    static_meshes.clear();
+Ref<Mesh> SteamAudioStaticMesh::get_proxy_mesh() {
+    print_line("getting the proxy mesh");
+    print_line(vformat("proxy_mode: %f", proxy_mode));
 
-    // 2) Pick which Mesh to read triangles from
-    Ref<Mesh> target;
+    MeshInstance3D* parent = cast_to<MeshInstance3D>(get_parent());
+    if (!parent) {
+        print_error("Parent is not a MeshInstance3D!");
+        return {};
+    }
+    Ref<Mesh> target_mesh;
+    Ref<Mesh> source_mesh = parent->get_mesh();
+    if (!source_mesh.is_valid()) {
+        print_error("Source mesh is invalid!");
+        return {};
+    }
+
+    print_line("using parent mesh");
+    print_line(vformat("Source mesh type: %s", source_mesh->get_class()));
+
     switch (proxy_mode) {
         case PROXY_NONE:
-            target = cast_to<MeshInstance3D>(get_parent())->get_mesh();
+            target_mesh = source_mesh;
             break;
-        case PROXY_CONVEX: {
-            Ref<Shape3D> hull_shape = cast_to<MeshInstance3D>(get_parent())->get_mesh()->create_convex_shape();
-            ConvexPolygonShape3D *convex = cast_to<ConvexPolygonShape3D>(hull_shape.ptr());
-            if (!convex) {
-                ERR_PRINT("SteamAudioStaticMesh: convex cast failed");
-                return;
-            }
-            Ref<ArrayMesh> debug_mesh = convex->get_debug_mesh();
-            if (!debug_mesh.is_valid()) {
-                ERR_PRINT("SteamAudioStaticMesh: debug mesh invalid");
-                return;
-            }
-            target = debug_mesh;
+        case PROXY_AUTO:
+
             break;
-        }
+
         case PROXY_CUSTOM:
-            if (!custom_proxy_mesh.is_valid()) {
-                ERR_PRINT("SteamAudioStaticMesh: custom_proxy_mesh not set");
-                return;
-            }
-            target = custom_proxy_mesh;
+
             break;
         default:
-            ERR_PRINT("SteamAudioStaticMesh: unknown proxy_mode");
-            return;
+            print_error("Unknown proxy mode!");
+            return {};
     }
+    return target_mesh;
 
-    if (!target.is_valid()) {
-        ERR_PRINT("SteamAudioStaticMesh: target mesh invalid");
+}
+
+
+
+void SteamAudioStaticMesh::build_mesh(IPLScene scene) {
+    if (!scene) {
+        ERR_PRINT("Invalid IPLScene passed to build_mesh");
         return;
     }
 
-    // 3) For each surface, build and add a Steam Audio static mesh
-    const int surface_count = target->get_surface_count();
-    for (int s = 0; s < surface_count; ++s) {
-        Array arrays = target->surface_get_arrays(s);
-        PackedVector3Array verts = arrays[Mesh::ARRAY_VERTEX];
-        PackedInt32Array   idxs  = arrays[Mesh::ARRAY_INDEX];
+    struct SurfaceData {
+        PackedVector3Array vertices;
+        PackedInt32Array indices;
+        IPLMaterial material;
+    };
 
-        // --- build IPLMaterial from metadata or default_material ---
-        Ref<Material> gm = target->surface_get_material(s);
-        Ref<SteamAudioMaterial> sa_mat;
-        if (gm.is_valid() && gm->has_meta("steam_audio")) {
-            sa_mat = gm->get_meta("steam_audio");
-        }
-        if (!sa_mat.is_valid()) {
-            sa_mat = default_material;
-        }
-        IPLMaterial material{};  // zero initialize all fields
-        // absorption[0..2]
-        material.absorption[0] = sa_mat->get_absorption().x;
-        material.absorption[1] = sa_mat->get_absorption().y;
-        material.absorption[2] = sa_mat->get_absorption().z;
-        // scattering
-        material.scattering    = sa_mat->get_scattering();
-        // transmission[0..2]
-        material.transmission[0] = sa_mat->get_transmission().x;
-        material.transmission[1] = sa_mat->get_transmission().y;
-        material.transmission[2] = sa_mat->get_transmission().z;
+    Vector<SurfaceData> surface_data;
+    print_line("building a static mesh");
+    Ref<Mesh> mesh = get_proxy_mesh();
 
-        // --- fill out static mesh settings ---
-        IPLStaticMeshSettings settings{};
+    if (mesh.is_null()) {
+        ERR_PRINT("Failed to get valid proxy mesh");
+        return;
+    }
+    print_line("got the mesh");
 
-        // Number of vertices
-        settings.numVertices = verts.size();
+    for (int surface_idx = 0; surface_idx < mesh->get_surface_count(); surface_idx++) {
+        SurfaceData data;
+        Array arrays = mesh->surface_get_arrays(surface_idx);
 
-        // reinterpret Godot’s Vector3 buffer as Steam Audio’s IPLVector3[]
-        const IPLVector3 *raw_vertices = reinterpret_cast<const IPLVector3 *>(verts.ptr());
-
-        // drop the const so it matches IPLStaticMeshSettings::vertices (IPLVector3*)
-        IPLVector3 *writable_vertices = const_cast<IPLVector3 *>(raw_vertices);
-        settings.vertices = writable_vertices;
-
-        // Number of triangles
-        settings.numTriangles = idxs.size() / 3;
-
-        // build triangle array
-        std::vector<IPLTriangle> triangles;
-        triangles.reserve(settings.numTriangles);
-        for (int i = 0; i < settings.numTriangles; ++i) {
-            IPLTriangle tri{};
-            tri.indices[0] = static_cast<uint32_t>(idxs[3*i + 0]);
-            tri.indices[1] = static_cast<uint32_t>(idxs[3*i + 1]);
-            tri.indices[2] = static_cast<uint32_t>(idxs[3*i + 2]);
-            triangles.push_back(tri);
-        }
-        settings.triangles    = triangles.data();
-        settings.numMaterials = 1;
-        settings.materials    = &material;
-
-        // --- create & add to Steam Audio scene ---
-        /*IPLStaticMesh sm = nullptr;
-        IPLerror err = iplStaticMeshCreate(global_scene, &settings, &sm);
-        if (err != IPL_STATUS_SUCCESS) {
-            ERR_PRINT("SteamAudioStaticMesh: iplStaticMeshCreate failed");
+        if (arrays.is_empty()) {
+            ERR_PRINT(vformat("Surface %d has no arrays data", surface_idx));
             continue;
         }
-         iplStaticMeshAdd(sm, global_scene);
-        static_meshes.push_back(sm);*/
+
+        // Get vertices and indices
+        PackedVector3Array vertices = arrays[Mesh::ARRAY_VERTEX];
+        PackedInt32Array indices = arrays[Mesh::ARRAY_INDEX];
+
+        if (vertices.is_empty()) {
+            ERR_PRINT(vformat("Surface %d has no vertices", surface_idx));
+            continue;
+        }
+
+        // If indices array is empty, create one from vertices
+        if (indices.is_empty()) {
+            indices.resize(vertices.size());
+            for (int i = 0; i < vertices.size(); i++) {
+                indices[i] = i;
+            }
+        }
+
+        // Create triangles if indices count is not a multiple of 3
+        if (indices.size() % 3 != 0) {
+            print_line("Surface " + itos(surface_idx) + " is not triangulated, converting to triangles");
+            PackedInt32Array new_indices;
+
+            // Simple triangulation for convex polygons
+            for (int i = 0; i < indices.size() - 2; i++) {
+                new_indices.push_back(indices[0]);
+                new_indices.push_back(indices[i + 1]);
+                new_indices.push_back(indices[i + 2]);
+            }
+
+            indices = new_indices;
+        }
+
+        data.vertices = vertices;
+        data.indices = indices;
+
+        // Get material for the surface
+        Ref<Material> material = mesh->surface_get_material(surface_idx);
+        if (material.is_valid() && material->has_meta("steam_audio_material")) {
+            Ref<SteamAudioMaterial> steam_audio_material = material->get_meta("steam_audio_material");
+            if (steam_audio_material.is_valid()) {
+                SteamMaterial steam_material = steam_audio_material->get_steam_material();
+                data.material = SteamAudio::to_ipl_material(steam_material);
+            } else {
+                WARN_PRINT(vformat("Invalid Steam Audio material for surface %d", surface_idx));
+                data.material = SteamAudio::to_ipl_material(SteamAudioMaterial::get_default_material());
+            }
+        } else {
+            data.material = SteamAudio::to_ipl_material(SteamAudioMaterial::get_default_material());
+        }
+
+        surface_data.push_back(data);
     }
 
-    // 4) Commit all additions at once
-   // iplSceneCommit(global_scene);
+    if (surface_data.is_empty()) {
+        ERR_PRINT("No valid surfaces found in mesh");
+        return;
+    }
+
+    // Calculate total counts
+    int total_vertices = 0;
+    int total_triangles = 0;
+    for (const SurfaceData &data: surface_data) {
+        total_vertices += data.vertices.size();
+        total_triangles += data.indices.size() / 3;
+    }
+
+    if (total_vertices == 0 || total_triangles == 0) {
+        ERR_PRINT("Mesh has no vertices or triangles");
+        return;
+    }
+
+    // Prepare final data arrays
+    PackedFloat32Array final_vertices;
+    PackedInt32Array final_triangles;
+    Vector<IPLMaterial> final_materials;
+    PackedInt32Array material_indices;
+
+    final_vertices.resize(total_vertices * 3);
+    final_triangles.resize(total_triangles * 3);
+    material_indices.resize(total_triangles);
+
+    // Combine all surfaces
+    int vertex_offset = 0;
+    int triangle_offset = 0;
+    int material_index = 0;
+
+    for (const SurfaceData &data: surface_data) {
+        // Copy vertices
+        for (int i = 0; i < data.vertices.size(); i++) {
+            const Vector3 &v = data.vertices[i];
+            final_vertices[vertex_offset * 3 + 0] = v.x;
+            final_vertices[vertex_offset * 3 + 1] = v.y;
+            final_vertices[vertex_offset * 3 + 2] = v.z;
+            vertex_offset++;
+        }
+
+        // Copy triangles
+        int base_vertex = vertex_offset - data.vertices.size();
+        for (int i = 0; i < data.indices.size(); i += 3) {
+            final_triangles[triangle_offset * 3 + 0] = base_vertex + data.indices[i + 0];
+            final_triangles[triangle_offset * 3 + 1] = base_vertex + data.indices[i + 1];
+            final_triangles[triangle_offset * 3 + 2] = base_vertex + data.indices[i + 2];
+
+            material_indices[triangle_offset] = material_index;
+            triangle_offset++;
+        }
+
+        final_materials.push_back(data.material);
+        material_index++;
+    }
+
+    // Create Steam Audio static mesh
+    IPLStaticMeshSettings mesh_settings = {};
+    mesh_settings.numVertices = total_vertices;
+    mesh_settings.numTriangles = total_triangles;
+    mesh_settings.numMaterials = final_materials.size();
+    mesh_settings.vertices = const_cast<IPLVector3 *>(reinterpret_cast<const IPLVector3 *>(final_vertices.ptr()));
+    mesh_settings.triangles = const_cast<IPLTriangle *>(reinterpret_cast<const IPLTriangle *>(final_triangles.ptr()));
+    mesh_settings.materials = const_cast<IPLMaterial *>(final_materials.ptr());
+    mesh_settings.materialIndices = const_cast<IPLint32 *>(material_indices.ptr());
+
+    IPLStaticMesh static_mesh;
+    IPLerror error = iplStaticMeshCreate(scene, &mesh_settings, &static_mesh);
+    if (error != IPL_STATUS_SUCCESS) {
+        ERR_PRINT(vformat("Failed to create static mesh. Error code: %d", error));
+        return;
+    }
+
+    print_line(vformat("Successfully created static mesh with %d vertices and %d triangles", total_vertices,
+                       total_triangles));
 }
+
+
+void SteamAudioStaticMesh::update_static_mesh() {
+    return;
+}
+

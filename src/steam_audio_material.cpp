@@ -1,4 +1,4 @@
-﻿#include "steam_audio_material.h"
+﻿#include "steam_audio_material.hpp"
 
 using namespace godot;
 
@@ -14,26 +14,22 @@ void SteamAudioMaterial::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::FLOAT,"scattering"), "set_scattering", "get_scattering");
     ADD_PROPERTY(PropertyInfo(Variant::VECTOR3,"transmission"), "set_transmission", "get_transmission");
 }
-Vector3 SteamAudioMaterial::get_absorption() const {return absorption;}
-void SteamAudioMaterial::set_absorption(Vector3 value) { absorption = value; }
-float SteamAudioMaterial::get_scattering() const {return scattering;}
-void SteamAudioMaterial::set_scattering(float value) { scattering = value; }
-Vector3 SteamAudioMaterial::get_transmission() const {return transmission;}
-void SteamAudioMaterial::set_transmission(Vector3 value) { transmission = value; }
 
-IPLMaterial SteamAudioMaterial::to_ipl_material() const {
-    IPLMaterial material ={};
-    material.absorption[0] = absorption.x;
-    material.absorption[1] = absorption.y;
-    material.absorption[2] = absorption.z;
+SteamMaterial SteamAudioMaterial::default_material = {
+    Vector3(0.10f,0.20f,0.30f),
+    0.05f,
+    Vector3(0.100f,0.050f,0.030f)
+};
 
-    material.scattering = scattering;
-
-    material.transmission[0] = transmission.x;
-    material.transmission[1] = transmission.y;
-    material.transmission[2] = transmission.z;
-
+Vector3 SteamAudioMaterial::get_absorption() const {return material.absorption;}
+void SteamAudioMaterial::set_absorption(Vector3 value) { material.absorption = value; }
+float SteamAudioMaterial::get_scattering() const {return material.scattering;}
+void SteamAudioMaterial::set_scattering(float value) { material.scattering = value; }
+Vector3 SteamAudioMaterial::get_transmission() const {return material.transmission;}
+void SteamAudioMaterial::set_transmission(Vector3 value) { material.transmission = value; }
+const SteamMaterial &SteamAudioMaterial::get_default_material() {
+    return default_material;
+}
+SteamMaterial SteamAudioMaterial::get_steam_material() const {
     return material;
 }
-
-

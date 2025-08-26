@@ -1,46 +1,52 @@
-﻿#include "steam_audio_listener.h"
-
-#include "phonon.h"
+﻿#include "steam_audio_listener.hpp"
 
 using namespace godot;
 
-SteamAudioListener::SteamAudioListener()  = default;
-SteamAudioListener::~SteamAudioListener() = default;
+SteamAudioListener* SteamAudioListener::listener;
 
-void SteamAudioListener::_bind_methods() {
-
+SteamAudioListener::SteamAudioListener() {
+    listener=this;
 }
 
-void SteamAudioListener::_process(double delta) {
+SteamAudioListener::~SteamAudioListener() {
+    listener=nullptr;
+}
+
+void SteamAudioListener::_bind_methods() {
+}
+
+SteamAudioListener* SteamAudioListener::get_listener() {
+    return listener;
+}
+
+void SteamAudioListener::_notification(int p_what) {
+    Transform3D current_transform;
+    switch (p_what) {
+        case NOTIFICATION_TRANSFORM_CHANGED:
+            current_transform = get_global_transform();
+            if (!last_transform.is_equal_approx(current_transform)) {
+                needs_update = true;
+                last_transform = current_transform;
+            }
+            break;
+        case NOTIFICATION_ENTER_TREE:
+            needs_update = true;
+            break;
+        default:
+            break;
+    }
+}
+
+void SteamAudioListener::update_listener(IPLSimulator iplsim, IPLSimulationSharedInputs iplsiminputs) {
+    needs_update=false;
+
     Transform3D transform = get_global_transform();
 
-    IPLVector3 pos = {
-        static_cast<float>(transform.origin.x),
-        static_cast<float>(transform.origin.y),
-        static_cast<float>(transform.origin.z)
-    };
-    Vector3 godot_fwd = transform.basis.xform(Vector3(0, 0, -1));
-    IPLVector3 fwd = {
-        static_cast<float>(godot_fwd.x),
-        static_cast<float>(godot_fwd.y),
-        static_cast<float>(godot_fwd.z)
-    };
-    Vector3 godot_up = transform.basis.xform(Vector3(0, 1, 0));
-    IPLVector3 up = {
-        static_cast<float>(godot_up.x),
-        static_cast<float>(godot_up.y),
-        static_cast<float>(godot_up.z)
-    };
-    IPLVector3 right = {
-        fwd.y * up.z - fwd.z * up.y,
-        fwd.z * up.x - fwd.x * up.z,
-        fwd.x * up.y - fwd.y * up.x
-    };
-    IPLCoordinateSpace3 listenerCS{};
-    listenerCS.origin = pos;
-    listenerCS.ahead = fwd;
-    listenerCS.up = up;
-    listenerCS.right = right;
-    IPLSimulationSharedInputs sharedInputs{};
-    sharedInputs.listener = listenerCS;
+    IPLCoordinateSpace3 space = SteamAudio::godot_to_ipl_space(transform);
+
+    iplsiminputs.listener=space;
+
+    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_DIRECT,&iplsiminputs);
+    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_PATHING,&iplsiminputs);
+    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_REFLECTIONS,&iplsiminputs);
 }

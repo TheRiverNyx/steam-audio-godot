@@ -1,118 +1,32 @@
-﻿#include "steam_audio.h"
+﻿#include "steam_audio.hpp"
 
 using namespace godot;
 
-IPLContext global_context = nullptr;
-IPLScene global_scene = nullptr;
-IPLSimulator global_simulator = nullptr;
 
-SteamAudio::SteamAudio() {
-    steam_audio=this;
-    initialize();
+ SteamAudio::SteamAudio() {
 
-}
-
- SteamAudio::~SteamAudio()
-{
-    steam_audio = nullptr;
-    shutdown();
 }
 
 void SteamAudio::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("initialize"), &SteamAudio::initialize);
-    ClassDB::bind_method(D_METHOD("shutdown"), &SteamAudio::shutdown);
-
-    ClassDB::bind_method(D_METHOD("get_hrtf"), &SteamAudio::get_hrtf);
-    ClassDB::bind_method(D_METHOD("get_hrtf_settings"), &SteamAudio::get_hrtf_settings);
-
-    ClassDB::bind_method(D_METHOD("get_simulator"), &SteamAudio::get_simulator);
-    ClassDB::bind_method(D_METHOD("get_simulation_settings"), &SteamAudio::get_simulation_settings);
-
-    ClassDB::bind_method(D_METHOD("get_context"),&SteamAudio::get_context);
-    ClassDB::bind_method(D_METHOD("get_context_settings"),&SteamAudio::get_context_settings);
-
-    ClassDB::bind_method(D_METHOD("get_scene"), &SteamAudio::get_scene);
-    ClassDB::bind_method(D_METHOD("get_scene_settings"), &SteamAudio::get_scene_settings);
-
-    ClassDB::bind_method(D_METHOD("get_embree_device"), &SteamAudio::get_embree_device);
-    ClassDB::bind_method(D_METHOD("get_embree_device_settings"),&SteamAudio::get_embree_device_settings);
-}
-
-bool SteamAudio::initialize() {
-    ctx_settings.version=STEAMAUDIO_VERSION;
-    IPLContext ctx = nullptr;
-    iplContextCreate(&ctx_settings, &ctx);
-    iplSceneCreate(ctx,&scene_settings,&scene);
-    iplSimulatorCreate(ctx,&simulation_settings,&simulator);
-    int ray_mode = proj_settings->get_setting("steam_audio/ray_tracer");
-    switch (ray_mode) {
-        case 0://steam rt
-            break;
-        case 1: // embree rt
-            iplEmbreeDeviceCreate(ctx,&embree_device_settings,&embree_device);
-            break;
-        default:
-            ERR_PRINT("Unknown Raytracer");
-            return false;
-    }
-    int spat_mode = proj_settings->get_setting("steam_audio/spatializer");
-    switch (spat_mode) {
-        case 0://panning
-            break;
-        case 1://HRTF
-            iplHRTFCreate(ctx,&audio_settings,&hrtf_settings,&hrtf);
-            break;
-        case 2://ambisonic pan
-            break;
-        case 3://ambisonic binaural
-            break;
-        default:
-            ERR_PRINT("Unknown Spatializer");
-            return false;
-    }
-    print_line("Steam Audio Successfully initialized");
-
-    return true;
-}
-
-void SteamAudio::update_static_scene() {
 
 }
-
-void SteamAudio::update_dynamic_scene() {
-
-}
-
-
-void SteamAudio::shutdown() {
-    if (embree_device != nullptr) {
-        iplEmbreeDeviceRelease(&embree_device);
-        embree_device = nullptr;
-    }
-    if (ctx != nullptr) {
-        iplContextRelease(&ctx);
-        ctx = nullptr;
-    }
-    if (hrtf != nullptr) {
-        iplHRTFRelease(&hrtf);
-        hrtf = nullptr;
-    }
-    if (simulator != nullptr) {
-        iplSimulatorRelease(&simulator);
-        simulator = nullptr;
-    }
-    if (scene!= nullptr) {
-        iplSceneRelease(&scene);
-        scene = nullptr;
-    }
-}
-bool SteamAudio::build_scene() {
-    update_dynamic_scene();
-    update_static_scene();
-}
-Array<NodePath> SteamAudio::get_nodes_with_child() {
-
-}
+IPLContextSettings SteamAudio::ctx_default_settings = {
+     STEAMAUDIO_VERSION,
+     nullptr,
+     nullptr,
+     nullptr,
+     IPL_SIMDLEVEL_NEON,
+};
+IPLSimulationSettings SteamAudio::simulation_default_settings = {
+};
+IPLAudioSettings SteamAudio::audio_default_settings = {
+};
+IPLSceneSettings SteamAudio::scene_default_settings = {
+};
+IPLEmbreeDeviceSettings SteamAudio::embree_device_default_settings = {
+};
+IPLHRTFSettings SteamAudio::hrtf_default_settings = {
+};
 
 IPLCoordinateSpace3 SteamAudio::godot_to_ipl_space(const Transform3D &t) {
     IPLCoordinateSpace3 s{};
@@ -129,7 +43,6 @@ IPLCoordinateSpace3 SteamAudio::godot_to_ipl_space(const Transform3D &t) {
     return s;
 }
 
-
 // Steam Audio → Godot space
 Transform3D SteamAudio::ipl_space_to_godot(const IPLCoordinateSpace3 &s) {
     // construct a Basis from column vectors
@@ -142,10 +55,45 @@ Transform3D SteamAudio::ipl_space_to_godot(const IPLCoordinateSpace3 &s) {
     return Transform3D(b, Vector3(s.origin.x, s.origin.y, s.origin.z));
 }
 
-void SteamAudio::_ready() {
-    reflections_thread;
-    build_scene();
-    iplSimulatorRunDirect(simulator);
+IPLMatrix4x4 SteamAudio::transform_to_ipl_matrix(const Transform3D &t) {
+    // First compute the three axes using Godot’s forward = –Z
+    Vector3 right   = t.basis.xform(Vector3(1, 0, 0));
+    Vector3 up      = t.basis.xform(Vector3(0, 1, 0));
+    Vector3 forward = t.basis.xform(Vector3(0, 0, -1));  // ← same as .ahead above
 
+    IPLMatrix4x4 m{};
+    // Row-major: m[row][col]
+
+    // X axis → column 0
+    m.elements[0][0] = right.x;   m.elements[1][0] = right.y;   m.elements[2][0] = right.z;
+
+    // Y axis → column 1
+    m.elements[0][1] = up.x;      m.elements[1][1] = up.y;      m.elements[2][1] = up.z;
+
+    // Forward (–Z) → column 2
+    m.elements[0][2] = forward.x; m.elements[1][2] = forward.y; m.elements[2][2] = forward.z;
+
+    // Translation → column 3
+    m.elements[0][3] = t.origin.x; m.elements[1][3] = t.origin.y; m.elements[2][3] = t.origin.z;
+
+    // Bottom row for homogeneous
+    m.elements[3][0] = 0; m.elements[3][1] = 0; m.elements[3][2] = 0; m.elements[3][3] = 1;
+
+    return m;
 }
 
+IPLMaterial SteamAudio::to_ipl_material(const SteamMaterial &material) {
+    IPLMaterial iplmaterial ={};
+
+    iplmaterial.absorption[0] = material.absorption.x;
+    iplmaterial.absorption[1] = material.absorption.y;
+    iplmaterial.absorption[2] = material.absorption.z;
+
+    iplmaterial.scattering = material.scattering;
+
+    iplmaterial.transmission[0] = material.transmission.x;
+    iplmaterial.transmission[1] = material.transmission.y;
+    iplmaterial.transmission[2] = material.transmission.z;
+
+    return iplmaterial;
+}

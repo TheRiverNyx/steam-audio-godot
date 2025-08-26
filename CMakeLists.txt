@@ -134,7 +134,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 # Installation setup
-set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/install/${PROJECT_NAME}/")
+set(INSTALL_DIR "${CMAKE_SOURCE_DIR}/demo/addons/${PROJECT_NAME}/")
 message(STATUS "Install directory: ${INSTALL_DIR}")
 install(TARGETS ${PROJECT_NAME}
         RUNTIME DESTINATION ${INSTALL_DIR}/${LIB_DIR}

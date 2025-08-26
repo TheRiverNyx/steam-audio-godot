@@ -49,3 +49,14 @@ void SteamAudioSource::_validate_property(PropertyInfo &property) const {
         property.usage = PROPERTY_USAGE_NO_EDITOR;
     }
 }
+void SteamAudioSource::_notification(int p_what) {
+
+}
+
+void SteamAudioSource::_process(double p_delta) {
+
+}
+
+void SteamAudioSource::update_source() {
+
+}

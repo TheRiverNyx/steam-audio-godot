@@ -1,0 +1,11 @@
+[configuration]
+entry_symbol = "steam_audio_library_init"
+compatibility_minimum = 4.1
+
+[icons]
+Example = "icons/Example.svg"
+
+[libraries]
+linux.debug.x86_64 = "lib/Linux-x86_64/libSteamAudioGodot-d.so"
+macos.debug = "lib/Darwin-Universal/libSteamAudioGodot-d.dylib"
+windows.debug.x86_64 = "lib/Windows-AMD64/libSteamAudioGodot-d.dll"

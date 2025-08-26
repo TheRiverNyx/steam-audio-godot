@@ -14,6 +14,8 @@ void initialize_steam_audio(ModuleInitializationLevel p_level) {
     }
     if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
         register_steam_audio_settings();
+        GDREGISTER_RUNTIME_CLASS(SteamAudio);
+        GDREGISTER_RUNTIME_CLASS(SteamAudioServer)
         GDREGISTER_RUNTIME_CLASS(SteamAudioMaterial);
         GDREGISTER_RUNTIME_CLASS(SteamAudioListener);
         GDREGISTER_RUNTIME_CLASS(SteamAudioSource);
@@ -38,7 +40,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::INT;
         info["hint"] = PROPERTY_HINT_ENUM;
         info["hint_string"] = "Steam RT,Embree RT";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/ray_tracer/RayTracer",1);
     }
@@ -50,7 +51,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::INT;
         info["hint"] = PROPERTY_HINT_ENUM;
         info["hint_string"] = "Panning,HRTF,Ambisonic Pan,Ambisonic Binaural";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/spatializer/spatializer",1);
     }
@@ -62,7 +62,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::INT;
         info["hint"] = PROPERTY_HINT_ENUM;
         info["hint_string"] = "Default,Custom";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/spatializer/HRTF/HRTF_Type",0);
     }
@@ -74,7 +73,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::STRING;
         info["hint"] = PROPERTY_HINT_FILE;
         info["hint_string"] = "";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/spatializer/HRTF/Sofa_File","");
     }
@@ -86,7 +84,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::FLOAT;
         info["hint"] = PROPERTY_HINT_RANGE;
         info["hint_string"] = "0.0,1.0,.01,slider";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/spatializer/HRTF/Volume",1.0f);
     }
@@ -98,7 +95,6 @@ void register_steam_audio_settings() {
         info["type"] = Variant::INT;
         info["hint"] = PROPERTY_HINT_ENUM;
         info["hint_string"] = "NONE,Root Mean Squared";
-        info["usage"] = PROPERTY_USAGE_DEFAULT;
         settings->add_property_info(info);
         settings->set_initial_value("steam_audio/spatializer/HRTF/Norm_Type",0);
     }

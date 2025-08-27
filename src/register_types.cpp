@@ -8,14 +8,15 @@ void initialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level!=MODULE_INITIALIZATION_LEVEL_SCENE && p_level != MODULE_INITIALIZATION_LEVEL_SERVERS) {
         return;
     }
+
     if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
         GDREGISTER_CLASS(SteamAudioServer);
         srv = memnew(SteamAudioServer);
     }
+
     if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
         register_steam_audio_settings();
         GDREGISTER_RUNTIME_CLASS(SteamAudio);
-        GDREGISTER_RUNTIME_CLASS(SteamAudioServer)
         GDREGISTER_RUNTIME_CLASS(SteamAudioMaterial);
         GDREGISTER_RUNTIME_CLASS(SteamAudioListener);
         GDREGISTER_RUNTIME_CLASS(SteamAudioSource);
@@ -28,6 +29,7 @@ void uninitialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
         memdelete(srv);
     }
+
 }
 
 void register_steam_audio_settings() {

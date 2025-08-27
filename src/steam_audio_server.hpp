@@ -19,6 +19,16 @@ using namespace godot;
 class SteamAudioServer : public Object {
     GDCLASS(SteamAudioServer, Object) // Godot class declaration macro
 private:
+    struct AudioSourceData {
+        Vector<AudioFrame> input_buffer;
+        Vector<AudioFrame> output_buffer;
+        IPLSource source;
+        Transform3D transform;
+        bool needs_processing = false;
+    };
+
+    std::unordered_map<SteamAudioSource*,AudioSourceData> audio_sources;
+    Ref<Mutex> audio_mutex;
     IPLContext ctx=nullptr;
     IPLContextSettings ctxSettings;
     IPLAudioSettings audioSettings;
@@ -40,6 +50,10 @@ public:
     SteamAudioServer();                             // Constructor
     ~SteamAudioServer() override;                   // Destructor
     void _notification(int p_what);
+    void register_audio_source(SteamAudioSource *source);
+    void unregister_audio_source(SteamAudioSource *source);
+    void process_audio_source(SteamAudioSource *source, const Vector<AudioFrame> &input_buffer);
+    Vector<AudioFrame> get_processed_audio_buffer(SteamAudioSource *source);
 
 protected:
     static void _bind_methods();

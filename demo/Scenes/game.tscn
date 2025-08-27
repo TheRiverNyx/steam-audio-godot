@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://dtccwj1qujhxp"]
 
 [ext_resource type="PackedScene" uid="uid://djvqisfxi1l0b" path="res://Scenes/Characters/Player.tscn" id="1_ebmjs"]
-[ext_resource type="Texture2D" uid="uid://bj23bn0s4mt0d" path="res://icon.svg" id="1_qxrlw"]
+[ext_resource type="Texture2D" uid="uid://ch0aljsxfwrd6" path="res://icon.svg" id="1_qxrlw"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_wrm1d"]
 albedo_texture = ExtResource("1_qxrlw")
@@ -45,8 +45,7 @@ shape = SubResource("WorldBoundaryShape3D_ebmjs")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.039711, 1, -0.146652)
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.703544, 0.710652, 0, -0.710652, 0.703544, 0, 7.28685, 0)
-
-[node name="SteamAudioManager" type="SteamAudioManager" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.70354384, 0.7106518, 0, -0.7106518, 0.70354384, -1.0560093, 9.826818, -1.0042496)
 
 [node name="SteamAudioSource" type="SteamAudioSource" parent="."]
+attenuation_model = 0

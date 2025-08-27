@@ -13,3 +13,11 @@ config_version=5
 config/name="demo"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
+
+[steam_audio]
+
+ray_tracer/RayTracer=0
+spatializer/spatializer=0
+spatializer/HRTF/Sofa_File=0.0
+sampling_rate=0
+buffer_size=0

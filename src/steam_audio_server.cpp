@@ -3,7 +3,7 @@
 using namespace godot;
 
  SteamAudioServer::SteamAudioServer() {
-     initialize();
+
 }
 
  SteamAudioServer::~SteamAudioServer() {
@@ -15,6 +15,8 @@ void SteamAudioServer::_bind_methods() {
  }
 
 void SteamAudioServer::initialize() {
+     if (Engine::get_singleton()->is_editor_hint())
+         return;
      IPLerror err = iplContextCreate(&ctxSettings,&ctx);
      if (err!=IPL_STATUS_SUCCESS) {
          ERR_PRINT("Failed to create IPL context");
@@ -50,8 +52,12 @@ void SteamAudioServer::shutdown() {
 void SteamAudioServer::_notification(int p_what) {
     switch (p_what) {
         case NOTIFICATION_POSTINITIALIZE:
+
+            initialize();
+
             directThread.instantiate();
             indirectThread.instantiate();
+
             directThread->start(callable_mp(this,&SteamAudioServer::start_direct_thread),Thread::PRIORITY_NORMAL);
             indirectThread->start(callable_mp(this,&SteamAudioServer::start_indirect_thread),Thread::PRIORITY_NORMAL);
     }
@@ -61,4 +67,8 @@ void SteamAudioServer::start_direct_thread() {
  }
 void SteamAudioServer::start_indirect_thread() {
      iplSimulatorRunReflections(simulator);
+ }
+
+void SteamAudioServer::register_audio_source(SteamAudioSource *source) {
+
  }

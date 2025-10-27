@@ -37,16 +37,16 @@ void SteamAudioListener::_notification(int p_what) {
     }
 }
 
-void SteamAudioListener::update_listener(IPLSimulator iplsim, IPLSimulationSharedInputs iplsiminputs) {
+void SteamAudioListener::update_listener(IPLSimulator iplSim, IPLSimulationSharedInputs iplSimInputs) {
     needs_update=false;
 
     Transform3D transform = get_global_transform();
 
     IPLCoordinateSpace3 space = SteamAudio::godot_to_ipl_space(transform);
 
-    iplsiminputs.listener=space;
+    iplSimInputs.listener=space;
 
-    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_DIRECT,&iplsiminputs);
-    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_PATHING,&iplsiminputs);
-    iplSimulatorSetSharedInputs(iplsim,IPL_SIMULATIONFLAGS_REFLECTIONS,&iplsiminputs);
+    iplSimulatorSetSharedInputs(iplSim,IPL_SIMULATIONFLAGS_DIRECT,&iplSimInputs);
+    iplSimulatorSetSharedInputs(iplSim,IPL_SIMULATIONFLAGS_PATHING,&iplSimInputs);
+    iplSimulatorSetSharedInputs(iplSim,IPL_SIMULATIONFLAGS_REFLECTIONS,&iplSimInputs);
 }

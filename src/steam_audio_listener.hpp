@@ -12,12 +12,14 @@ using namespace godot;
 class SteamAudioListener:public AudioListener3D
 {
     GDCLASS(SteamAudioListener,AudioListener3D)
+
 private:
     bool needs_update = false;
     Transform3D last_transform;
 
 protected:
     static void _bind_methods();
+
 public:
     bool get_needs_update() {
         return needs_update;
@@ -29,7 +31,7 @@ public:
     void _notification(int p_what);
 
     static SteamAudioListener* get_listener();
-    void update_listener(IPLSimulator iplsim, IPLSimulationSharedInputs iplsiminputs);
+    void update_listener(IPLSimulator iplSim, IPLSimulationSharedInputs iplSimInputs);
     void set_listener_position(const Vector3 &p_position);
     void set_listener_orientation(const Vector3 &p_forward, const Vector3 &p_up);
     void set_listener_velocity(const Vector3 &p_velocity);

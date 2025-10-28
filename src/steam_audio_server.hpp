@@ -1,20 +1,21 @@
 ﻿#pragma once
 
 #include <godot_cpp/classes/audio_frame.hpp>
+#include <godot_cpp/classes/mutex.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
+#include <godot_cpp/classes/thread.hpp>
 #include <godot_cpp/classes/wrapped.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/godot.hpp>
-#include <godot_cpp/classes/thread.hpp>
-#include <godot_cpp/classes/mutex.hpp>
 #include <phonon.h>
 #include <steam_audio.hpp>
+#include <unordered_map>
+
 #include "steam_audio_dynamic_mesh.hpp"
 #include "steam_audio_source.hpp"
 #include "steam_audio_static_mesh.hpp"
 
 using namespace godot;
-
 
 class SteamAudioServer : public Object {
     GDCLASS(SteamAudioServer, Object) // Godot class declaration macro
@@ -27,7 +28,7 @@ private:
         bool needs_processing = false;
     };
 
-    std::unordered_map<SteamAudioSource*,AudioSourceData> audio_sources;
+    std::unordered_map<SteamAudioSource *, AudioSourceData> audio_sources;
     Ref<Mutex> audio_mutex;
     IPLContext ctx=nullptr;
     IPLContextSettings ctxSettings;
@@ -47,8 +48,8 @@ private:
     Ref<Thread> indirectThread;
 
 public:
-    SteamAudioServer();                             // Constructor
-    ~SteamAudioServer() override;                   // Destructor
+    SteamAudioServer();
+    ~SteamAudioServer() override;
     void _notification(int p_what);
     void register_audio_source(SteamAudioSource *source);
     void unregister_audio_source(SteamAudioSource *source);
@@ -57,8 +58,11 @@ public:
 
 protected:
     static void _bind_methods();
+
+public:
     void initialize();
     void shutdown();
     void start_direct_thread();
     void start_indirect_thread();
+
 };

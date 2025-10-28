@@ -3,11 +3,10 @@
 using namespace godot;
 
  SteamAudioServer::SteamAudioServer() {
-
 }
 
- SteamAudioServer::~SteamAudioServer() {
-     shutdown();
+SteamAudioServer::~SteamAudioServer() {
+    shutdown();
 }
 
 // Core Godot Methods
@@ -17,10 +16,13 @@ void SteamAudioServer::_bind_methods() {
 void SteamAudioServer::initialize() {
      if (Engine::get_singleton()->is_editor_hint())
          return;
+
      IPLerror err = iplContextCreate(&ctxSettings,&ctx);
+
      if (err!=IPL_STATUS_SUCCESS) {
          ERR_PRINT("Failed to create IPL context");
      }
+
      switch (static_cast<int>(proj_settings->get_setting("steam_audio/ray_tracer/RayTracer"))){
          case 0:
              break;
@@ -60,6 +62,8 @@ void SteamAudioServer::_notification(int p_what) {
 
             directThread->start(callable_mp(this,&SteamAudioServer::start_direct_thread),Thread::PRIORITY_NORMAL);
             indirectThread->start(callable_mp(this,&SteamAudioServer::start_indirect_thread),Thread::PRIORITY_NORMAL);
+        default:
+            return;
     }
 }
 void SteamAudioServer::start_direct_thread() {

@@ -12,6 +12,8 @@ void initialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
         GDREGISTER_CLASS(SteamAudioServer);
         srv = memnew(SteamAudioServer);
+        Engine::get_singleton()->register_singleton("SteamAudioServer", srv);
+        srv->initialize();
     }
 
     if (p_level == MODULE_INITIALIZATION_LEVEL_SCENE) {
@@ -28,6 +30,7 @@ void initialize_steam_audio(ModuleInitializationLevel p_level) {
 void uninitialize_steam_audio(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_SERVERS) {
         memdelete(srv);
+        srv = nullptr;
     }
 
 }
